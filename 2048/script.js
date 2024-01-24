@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", function () {
-  // Wait till the browser is ready to render the game (avoids glitches)
   window.requestAnimationFrame(function () {
     var manager = new GameManager(4, KeyboardInputManager, HTMLActuator);
   });
@@ -441,7 +440,6 @@ HTMLActuator.prototype.clearMessage = function () {
 
 function KeyboardInputManager() {
   this.events = {};
-
   this.listen();
 }
 
@@ -465,20 +463,23 @@ KeyboardInputManager.prototype.listen = function () {
   var self = this;
 
   var map = {
-    38: 0, // Up
-    39: 1, // Right
-    40: 2, // Down
-    37: 3, // Left
-    75: 0, // vim keybindings
-    76: 1,
-    74: 2,
-    72: 3
+    "arrowup": 0, // Up
+    "arrowright": 1, // Right
+    "arrowdown": 2, // Down
+    "arrowleft": 3, // Left
+    "w": 0, // 
+    "d": 1,
+    "s": 2,
+    "a": 3
   };
+
+  var xDown = null;
+  var yDown = null;
 
   document.addEventListener("keydown", function (event) {
     var modifiers = event.altKey || event.ctrlKey || event.metaKey ||
       event.shiftKey;
-    var mapped = map[event.which];
+    var mapped = map[event.key.toLowerCase()];
 
     if (!modifiers) {
       if (mapped !== undefined) {
@@ -486,14 +487,54 @@ KeyboardInputManager.prototype.listen = function () {
         self.emit("move", mapped);
       }
 
-      if (event.which === 32) self.restart.bind(self)(event);
+      if (event.key === " ") self.restart.bind(self)(event);
     }
   });
 
+  // need to add scroll gesture
+  document.addEventListener("touchstart", handleTouchStart);
+  document.addEventListener("touchmove", handleTouchMove);
+
+  function getTouches(evt) {
+    return evt.touches || evt.originalEvent.touches;
+  }
+
+  function handleTouchStart(evt) {
+    const firstTouch = getTouches(evt)[0];
+    xDown = firstTouch.clientX;
+    yDown = firstTouch.clientY;
+  };
+
+  function handleTouchMove(evt) {
+    if (!xDown || !yDown) {
+      return;
+    }
+
+    var xUp = evt.touches[0].clientX;
+    var yUp = evt.touches[0].clientY;
+    var xDiff = xDown - xUp;
+    var yDiff = yDown - yUp;
+
+    if (Math.abs(xDiff) > Math.abs(yDiff)) {
+      if (xDiff > 0) {
+        self.emit("move", 3);
+      } else {
+        self.emit("move", 1);
+      }
+    } else {
+      if (yDiff > 0) {
+        self.emit("move", 0);
+      } else {
+        self.emit("move", 2);
+      }
+    }
+    /* reset values */
+    xDown = null;
+    yDown = null;
+  };
+
   var retry = document.getElementsByClassName("retry-button")[0];
   retry.addEventListener("click", this.restart.bind(this));
-
-  // need to add scroll gesture
 };
 
 KeyboardInputManager.prototype.restart = function (event) {
